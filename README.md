@@ -2,7 +2,7 @@
 
 A mobile-first web app that turns your microphone into an animated monster decibel meter — and auto-captures sound clips around loud noises.
 
-Visit -> [Monster Meter](https://monstermeter.yingcredible.net)
+Visit -> [Monster Meter](https://monstermeter.engsight.app)
 
 ## Features
 
