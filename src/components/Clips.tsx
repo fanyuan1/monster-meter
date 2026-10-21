@@ -89,7 +89,7 @@ export function Clips({
       <div className="empty">
         <div className="big">🎬</div>
         <div>No clips yet.</div>
-        <div style={{ fontSize: 12, marginTop: 6 }}>
+        <div style={{ fontSize: 14, marginTop: 6 }}>
           Clips are captured automatically when the monster hears a loud noise.
         </div>
       </div>
