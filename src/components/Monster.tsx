@@ -43,9 +43,9 @@ export interface MonsterDef {
 }
 
 export const MONSTERS: MonsterDef[] = [
-  { id: "wingwurm", name: "Wingwurm", color: "#d85c4f" },
-  { id: "aquaeye", name: "Aqua-eye", color: "#2f6d99" },
   { id: "thunderpuff", name: "Thunderpuff", color: "#9b86c8" },
+  { id: "aquaeye", name: "Aqua-eye", color: "#2f6d99" },
+  { id: "wingwurm", name: "Wingwurm", color: "#d85c4f" },
   { id: "finnysnout", name: "Finny snout", color: "#e6c14a" },
 ];
 

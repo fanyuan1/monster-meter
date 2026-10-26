@@ -64,7 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
   preRollSec: 3,
   postRollSec: 3,
   calibrationDb: 100,
-  monsterId: "wingwurm",
+  monsterId: "thunderpuff",
   theme: "system",
 };
 
