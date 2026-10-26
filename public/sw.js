@@ -1,6 +1,8 @@
 // Offline support. Vite hashes /assets/* filenames, so those are immutable and
-// served cache-first; the HTML shell is network-first so deploys show up.
-const CACHE = "monster-meter-v1";
+// served cache-first. Everything else (HTML, manifest, icons) keeps a stable URL,
+// so it is network-first: otherwise a changed manifest would never reach the
+// installed app.
+const CACHE = "monster-meter-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/favicon-32.png", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -32,15 +34,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== self.location.origin) return;
 
-  if (req.mode === "navigate") {
+  if (!url.pathname.startsWith("/assets/")) {
+    // All navigations share one cached shell, since the app is a single page.
+    const key = req.mode === "navigate" ? "/" : req;
     event.respondWith(
       (async () => {
         try {
           const res = await fetch(req);
-          (await caches.open(CACHE)).put("/", res.clone());
+          if (res.ok) (await caches.open(CACHE)).put(key, res.clone());
           return res;
         } catch {
-          return (await caches.match("/")) ?? Response.error();
+          return (await caches.match(key)) ?? Response.error();
         }
       })()
     );
