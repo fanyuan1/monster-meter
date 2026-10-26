@@ -1,3 +1,5 @@
+import type { ThemePref } from "./theme";
+
 /** A user-uploaded alert sound, stored inline as a data URL. */
 export interface CustomSound {
   id: string;
@@ -47,6 +49,8 @@ export interface Settings {
   calibrationDb: number;
   /** Id of the currently selected monster. */
   monsterId: string;
+  /** Color theme; "system" follows the OS setting. */
+  theme: ThemePref;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -61,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
   postRollSec: 3,
   calibrationDb: 100,
   monsterId: "wingwurm",
+  theme: "system",
 };
 
 const KEY = "monster-meter-settings";

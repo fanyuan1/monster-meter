@@ -110,6 +110,22 @@ export function Settings({ settings, onChange, engine, running, starting, onStar
       </div>
 
       <div className="card">
+        <h2>Appearance</h2>
+        <p className="sub">System follows your phone's light or dark mode.</p>
+        <div className="seg">
+          {(["system", "light", "dark"] as const).map((t) => (
+            <button
+              key={t}
+              className={settings.theme === t ? "active" : ""}
+              onClick={() => onChange({ theme: t })}
+            >
+              {t[0].toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card">
         <h2>Trigger</h2>
         <p className="sub">When the level crosses this, a clip starts recording.</p>
         <Slider

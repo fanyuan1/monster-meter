@@ -7,6 +7,7 @@ import { Clips } from "./components/Clips";
 import { Settings } from "./components/Settings";
 import { MONSTERS } from "./components/Monster";
 import { addClip } from "./storage/clips";
+import { applyTheme } from "./state/theme";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -129,6 +130,8 @@ export function App() {
       awaitingMClip.current = true;
     });
   }, [engine]);
+
+  useEffect(() => applyTheme(settings.theme), [settings.theme]);
 
   // Keep the engine config in sync with settings.
   useEffect(() => {
