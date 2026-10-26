@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#0b1120",
+  "theme_color": "#141c2f",
   "color_scheme_dark": { "theme_color": "#141c2f", "background_color": "#0b1120" },
   "user_preferences": {
     "color_scheme": { "dark": { "theme_color": "#141c2f", "background_color": "#0b1120" } }
