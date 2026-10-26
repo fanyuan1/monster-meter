@@ -65,6 +65,9 @@ export class AudioEngine {
   private wasAbove = false;
   private lastAlertAt = -Infinity;
 
+  // Calibration: running sum of squared samples while a measurement is active.
+  private measuring: { sumSq: number; n: number } | null = null;
+
   // Visual meter loop.
   private rafId = 0;
   private analyserBuf = new Float32Array(0);
@@ -176,6 +179,20 @@ export class AudioEngine {
     this.stream = null;
   }
 
+  /**
+   * Average uncalibrated level (dBFS) over `sec` seconds. Power-averaged, so a
+   * steady reference sound gives a stable reading. Requires the mic running.
+   */
+  async measureDbfs(sec: number): Promise<number> {
+    if (!this.running) throw new Error("Microphone is not running");
+    this.measuring = { sumSq: 0, n: 0 };
+    await new Promise((r) => setTimeout(r, sec * 1000));
+    const m = this.measuring;
+    this.measuring = null;
+    if (!m || m.n === 0 || m.sumSq === 0) throw new Error("No audio captured");
+    return 10 * Math.log10(m.sumSq / m.n);
+  }
+
   private rmsToDb(rms: number): number {
     if (rms <= 0) return 0;
     const db = 20 * Math.log10(rms) + this.cfg.calibrationDb;
@@ -204,6 +221,10 @@ export class AudioEngine {
     let sum = 0;
     for (let i = 0; i < n; i++) sum += input[i] * input[i];
     const db = this.rmsToDb(Math.sqrt(sum / n));
+    if (this.measuring) {
+      this.measuring.sumSq += sum;
+      this.measuring.n += n;
+    }
 
     const now = this.ctx!.currentTime;
     const above = db >= this.cfg.thresholdDb;

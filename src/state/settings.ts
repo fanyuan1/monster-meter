@@ -31,6 +31,8 @@ export interface Settings {
   alertSounds: string[];
   /** User-uploaded custom sounds. */
   customSounds: CustomSound[];
+  /** Vibrate the device on a threshold crossing (where supported). */
+  vibrateEnabled: boolean;
   /** Alert loudness, 0..1. */
   alertVolume: number;
   /** Seconds of audio kept *before* the trigger. */
@@ -53,6 +55,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alertPhrase: "",
   alertSounds: ["nile"],
   customSounds: [],
+  vibrateEnabled: true,
   alertVolume: 0.8,
   preRollSec: 3,
   postRollSec: 3,
@@ -79,6 +82,10 @@ export function saveSettings(s: Settings) {
     /* ignore quota / private mode errors */
   }
 }
+
+/** Range of the calibration offset slider; the wizard clamps to it too. */
+export const CALIBRATION_MIN_DB = 40;
+export const CALIBRATION_MAX_DB = 140;
 
 /** Visual scale bounds used for the gauge fill and monster animation. */
 export const GAUGE_MIN_DB = 30;

@@ -1,13 +1,23 @@
 import type { ChangeEvent } from "react";
 import type { Settings as SettingsType } from "../state/settings";
+import { CALIBRATION_MAX_DB, CALIBRATION_MIN_DB } from "../state/settings";
+import type { AudioEngine } from "../audio/AudioEngine";
 import { previewAlert } from "../audio/alert";
 import { BUILTIN_SOUNDS, resolveSounds } from "../audio/sounds";
 import { MONSTERS, Monster } from "./Monster";
+import { Calibrate } from "./Calibrate";
 
 interface Props {
   settings: SettingsType;
   onChange: (patch: Partial<SettingsType>) => void;
+  engine: AudioEngine;
+  running: boolean;
+  starting: boolean;
+  onStart: () => void;
 }
+
+// iOS Safari has no Vibration API; hide the toggle there.
+const CAN_VIBRATE = typeof navigator !== "undefined" && "vibrate" in navigator;
 
 function Slider({
   label,
@@ -47,7 +57,7 @@ function Slider({
   );
 }
 
-export function Settings({ settings, onChange }: Props) {
+export function Settings({ settings, onChange, engine, running, starting, onStart }: Props) {
   const toggleSound = (id: string) => {
     const sel = settings.alertSounds.includes(id)
       ? settings.alertSounds.filter((s) => s !== id)
@@ -111,6 +121,24 @@ export function Settings({ settings, onChange }: Props) {
           unit=" dB"
           onChange={(v) => onChange({ thresholdDb: v })}
         />
+        {CAN_VIBRATE && (
+          <div className="alert-head" style={{ marginTop: 16 }}>
+            <div>
+              <h2>Vibrate</h2>
+              <p className="sub" style={{ margin: 0 }}>
+                Buzz the phone when the level crosses the threshold.
+              </p>
+            </div>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={settings.vibrateEnabled}
+                onChange={(e) => onChange({ vibrateEnabled: e.target.checked })}
+              />
+              <span className="track" />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="card">
@@ -255,11 +283,19 @@ export function Settings({ settings, onChange }: Props) {
         <Slider
           label="Offset"
           value={settings.calibrationDb}
-          min={60}
-          max={120}
+          min={CALIBRATION_MIN_DB}
+          max={CALIBRATION_MAX_DB}
           step={1}
           unit=" dB"
           onChange={(v) => onChange({ calibrationDb: v })}
+        />
+        <Calibrate
+          engine={engine}
+          running={running}
+          starting={starting}
+          calibrationDb={settings.calibrationDb}
+          onStart={onStart}
+          onCalibrate={(v) => onChange({ calibrationDb: v })}
         />
       </div>
     </div>

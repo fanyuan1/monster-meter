@@ -59,14 +59,19 @@ button {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  /* bottom safe area is handled by .nav */
+  padding: 16px;
 }
 
+/* Solid-ish white like .nav so it blends with the white system status bar (theme-color). */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(12px + env(safe-area-inset-top)) 18px 6px;
+  padding: calc(12px + env(safe-area-inset-top)) 18px 10px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--panel-border);
 }
 .topbar h1 {
   font-size: 22px;
@@ -757,4 +762,32 @@ input[type="range"] {
 .empty .big {
   font-size: 48px;
   margin-bottom: 8px;
+}
+
+/* calibration wizard */
+.calibrate {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--panel-border);
+}
+.calibrate .steps {
+  margin: 14px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.calibrate .steps li {
+  margin-bottom: 4px;
+}
+.card .sub.calibrate-msg {
+  margin: 12px 0 0;
+}
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
 }

@@ -116,9 +116,14 @@ export function App() {
     });
   }, [engine]);
 
+  // Ref so the long-lived threshold listener sees the current toggle.
+  const vibrateRef = useRef(settings.vibrateEnabled);
+  vibrateRef.current = settings.vibrateEnabled;
+
   // Track the last threshold breach for the "M" readout.
   useEffect(() => {
     return engine.onThreshold((db) => {
+      if (vibrateRef.current) navigator.vibrate?.([200, 100, 200]);
       setMDb(Math.round(db));
       setMClipId(null); // clip is still recording; not navigable yet
       awaitingMClip.current = true;
@@ -136,6 +141,31 @@ export function App() {
       engine.stop();
     };
   }, [engine]);
+
+  // Keep the screen on while listening: a locked screen usually kills the mic.
+  // The browser drops the lock when the page is hidden, so re-acquire on return.
+  useEffect(() => {
+    if (!running || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const l = await navigator.wakeLock.request("screen");
+        if (cancelled) l.release();
+        else lock = l;
+      } catch {
+        /* denied (e.g. battery saver); meter still works */
+      }
+    };
+    acquire();
+    document.addEventListener("visibilitychange", acquire);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", acquire);
+      lock?.release();
+    };
+  }, [running]);
 
   const updateSettings = useCallback((patch: Partial<SettingsType>) => {
     setSettings((s) => ({ ...s, ...patch }));
@@ -203,7 +233,16 @@ export function App() {
             onHighlightDone={() => setHighlightClipId(null)}
           />
         )}
-        {tab === "settings" && <Settings settings={settings} onChange={updateSettings} />}
+        {tab === "settings" && (
+          <Settings
+            settings={settings}
+            onChange={updateSettings}
+            engine={engine}
+            running={running}
+            starting={starting}
+            onStart={handleStart}
+          />
+        )}
       </div>
 
       <nav className="nav">
