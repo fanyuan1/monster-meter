@@ -1,13 +1,3 @@
-/**
- * Generate favicons and PWA icons from the reference art in /reference.
- * Trimming the white margin recentres each image on its own content.
- *
- * favicon.jpg  -> tab favicons, cut to a circle so the white corners vanish.
- * appicon.jpg  -> apple touch and PWA icons, centred on white. The maskable
- *                 icon is padded so the art stays inside the ~80% safe zone.
- *
- *   node scripts/make-pwa-icons.mjs
- */
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import sharp from "sharp";

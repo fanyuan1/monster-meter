@@ -1,46 +1,21 @@
-/**
- * Extract per-mood monster art from 2x2 expression character sheets.
- *
- * A "sheet" is any PNG in src/assets/monsters/ that is NOT already a
- * `<id>-<mood>.png` file. Its four cells are read as:
- *
- *     happy (top-left)      | indifferent (top-right)
- *     ---------------------- ------------------------
- *     mad (bottom-left)     | very mad (bottom-right)
- *
- * For each cell this script:
- *   1) flood-fills from the cell borders to drop the baked checkerboard
- *      background (restoring real transparency), and
- *   2) trims to the monster and centres it on a uniform transparent square,
- *      so every mood shares the same size/position.
- *
- * The crop is inset from the centre seams (GAP) so any separator line between
- * cells is excluded. The monster id is derived from the filename with
- * non-alphanumerics stripped (e.g. `aqua-eye.png` -> `aquaeye`). The source
- * sheet is deleted once extracted.
- *
- *   node scripts/extract-sheets.mjs
- */
 import { readdirSync, writeFileSync, unlinkSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import sharp from "sharp";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "assets", "monsters");
-const MOODS = ["happy", "indifferent", "mad", "verymad"]; // TL, TR, BL, BR
-const GAP = 16; // px inset from the centre seams, to skip separator lines
-const SIZE = 512; // uniform output canvas
-const FILL = 0.9; // fraction of the canvas the content may occupy
+const MOODS = ["happy", "indifferent", "mad", "verymad"];
+const GAP = 16;
+const SIZE = 512;
+const FILL = 0.9;
 const T = { r: 0, g: 0, b: 0, alpha: 0 };
 
-/** A neutral light grey/white checker square (not a saturated monster colour). */
 function isChecker(r, g, b) {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   return max - min <= 18 && min >= 180;
 }
 
-/** Flood-fill from the borders, clearing checker pixels to transparent. */
 function stripChecker(data, W, H) {
   const visited = new Uint8Array(W * H);
   const stack = [];
@@ -125,7 +100,7 @@ async function processSheet(file, id) {
     const size = await extractCell(file, regions[i], `${id}-${MOODS[i]}.png`);
     console.log(`  ${id}-${MOODS[i]}.png — content ${size}`);
   }
-  unlinkSync(join(DIR, file)); // remove the source sheet
+  unlinkSync(join(DIR, file));
 }
 
 const moodRe = new RegExp(`-(${MOODS.join("|")})\\.png$`, "i");

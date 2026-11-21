@@ -1,6 +1,3 @@
-/**
- * Encode a mono Float32 sample array into a 16-bit PCM WAV Blob.
- */
 export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   const numChannels = 1;
   const bytesPerSample = 2;
@@ -21,8 +18,8 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   view.setUint32(4, 36 + dataSize, true);
   writeString(8, "WAVE");
   writeString(12, "fmt ");
-  view.setUint32(16, 16, true); // fmt chunk size
-  view.setUint16(20, 1, true); // PCM
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);

@@ -16,7 +16,6 @@ interface Props {
   onStart: () => void;
 }
 
-// iOS Safari has no Vibration API; hide the toggle there.
 const CAN_VIBRATE = typeof navigator !== "undefined" && "vibrate" in navigator;
 
 function Slider({

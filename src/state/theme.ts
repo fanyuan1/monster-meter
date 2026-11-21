@@ -1,6 +1,5 @@
 export type ThemePref = "system" | "light" | "dark";
 
-/** Status/nav bar color per theme; matches --panel so system bars blend into the app bars. */
 const THEME_COLORS = { light: "#ffffff", dark: "#141c2f" } as const;
 
 const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -19,10 +18,6 @@ function paint(pref: ThemePref) {
     ?.setAttribute("content", THEME_COLORS[effective(pref)]);
 }
 
-/**
- * Apply a theme preference to the document. With "system", also tracks OS
- * changes so the bar color flips with it. Returns a cleanup function.
- */
 export function applyTheme(pref: ThemePref): () => void {
   paint(pref);
   if (pref !== "system") return () => {};

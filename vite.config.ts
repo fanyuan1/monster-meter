@@ -6,7 +6,7 @@ export default defineConfig({
     basicSsl()
   ],
   server: {
-    host: '0.0.0.0', // Exposes the server to your local network
+    host: '0.0.0.0',
     port: 5173
   }
 });

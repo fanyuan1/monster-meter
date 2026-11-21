@@ -17,7 +17,6 @@ import {
 
 type Tab = "monitor" | "clips" | "settings";
 
-/** Build the engine config from settings, resolving sound ids to playable specs. */
 function toEngineConfig(s: SettingsType): EngineConfig {
   return {
     thresholdDb: s.thresholdDb,
@@ -31,7 +30,6 @@ function toEngineConfig(s: SettingsType): EngineConfig {
   };
 }
 
-/** Simple monochrome line icons for the bottom nav (inherit currentColor). */
 function NavIcon({ name }: { name: Tab }) {
   const common = {
     className: "ico",
@@ -83,21 +81,17 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [clipsKey, setClipsKey] = useState(0);
 
-  // "M": the dB of the most recent threshold breach, and the clip it belongs to.
   const [mDb, setMDb] = useState<number | null>(null);
   const [mClipId, setMClipId] = useState<string | null>(null);
   const [highlightClipId, setHighlightClipId] = useState<string | null>(null);
-  // True between a breach and its clip being saved (clip still recording).
   const awaitingMClip = useRef(false);
 
-  // One engine instance for the app's lifetime.
   const engineRef = useRef<AudioEngine | null>(null);
   if (!engineRef.current) {
     engineRef.current = new AudioEngine(toEngineConfig(settings));
   }
   const engine = engineRef.current;
 
-  // Persist newly recorded clips.
   useEffect(() => {
     return engine.onClip(async (clip: RecordedClip) => {
       const id = `${clip.createdAt}-${Math.random().toString(36).slice(2, 8)}`;
@@ -108,7 +102,6 @@ export function App() {
         peakDb: clip.peakDb,
         createdAt: clip.createdAt,
       });
-      // This clip contains the most recent breach(es) -> link it to M.
       if (awaitingMClip.current) {
         awaitingMClip.current = false;
         setMClipId(id);
@@ -117,23 +110,20 @@ export function App() {
     });
   }, [engine]);
 
-  // Ref so the long-lived threshold listener sees the current toggle.
   const vibrateRef = useRef(settings.vibrateEnabled);
   vibrateRef.current = settings.vibrateEnabled;
 
-  // Track the last threshold breach for the "M" readout.
   useEffect(() => {
     return engine.onThreshold((db) => {
       if (vibrateRef.current) navigator.vibrate?.([200, 100, 200]);
       setMDb(Math.round(db));
-      setMClipId(null); // clip is still recording; not navigable yet
+      setMClipId(null);
       awaitingMClip.current = true;
     });
   }, [engine]);
 
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
 
-  // Keep the engine config in sync with settings.
   useEffect(() => {
     engine.updateConfig(toEngineConfig(settings));
     saveSettings(settings);
@@ -145,8 +135,6 @@ export function App() {
     };
   }, [engine]);
 
-  // Keep the screen on while listening: a locked screen usually kills the mic.
-  // The browser drops the lock when the page is hidden, so re-acquire on return.
   useEffect(() => {
     if (!running || !("wakeLock" in navigator)) return;
     let lock: WakeLockSentinel | null = null;
@@ -158,7 +146,6 @@ export function App() {
         if (cancelled) l.release();
         else lock = l;
       } catch {
-        /* denied (e.g. battery saver); meter still works */
       }
     };
     acquire();
@@ -196,10 +183,9 @@ export function App() {
   const handleStop = useCallback(async () => {
     await engine.stop();
     setRunning(false);
-    setClipsKey((k) => k + 1); // a clip may have been flushed on stop
+    setClipsKey((k) => k + 1);
   }, [engine]);
 
-  // Clicking "M" jumps to the Clips tab and highlights the matching clip.
   const handleOpenMClip = useCallback(() => {
     setTab("clips");
     if (mClipId) setHighlightClipId(mClipId);

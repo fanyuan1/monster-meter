@@ -27,19 +27,8 @@ type ClipListener = (clip: RecordedClip) => void;
 type ThresholdListener = (db: number) => void;
 
 const PROCESSOR_BUFFER = 4096;
-/** Minimum gap between alerts so hovering near the threshold can't spam them. */
 const ALERT_COOLDOWN_SEC = 1.2;
 
-/**
- * Owns the microphone graph:
- *   source -> analyser (smooth meter)
- *   source -> processor -> mutedGain -> destination (sample capture + trigger)
- *
- * Keeps a continuous ring buffer of the most recent `preRollSec` of audio so a
- * clip can include sound from *before* the trigger fired. While recording, the
- * post-roll deadline is pushed forward every time the threshold is crossed
- * again, so sustained noise extends the clip rather than cutting it.
- */
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
@@ -50,25 +39,20 @@ export class AudioEngine {
 
   private cfg: EngineConfig;
 
-  // Ring buffer (pre-roll) of mono Float32 samples.
   private ring = new Float32Array(0);
   private ringWrite = 0;
   private ringFilled = false;
 
-  // Active recording state.
   private recording = false;
   private captureChunks: Float32Array[] = [];
-  private recordUntil = 0; // ctx.currentTime deadline
+  private recordUntil = 0;
   private capturePeakDb = -Infinity;
 
-  // Threshold-crossing alert state.
   private wasAbove = false;
   private lastAlertAt = -Infinity;
 
-  // Calibration: running sum of squared samples while a measurement is active.
   private measuring: { sumSq: number; n: number } | null = null;
 
-  // Visual meter loop.
   private rafId = 0;
   private analyserBuf = new Float32Array(0);
   private smoothedDb = 0;
@@ -102,7 +86,6 @@ export class AudioEngine {
       this.clipListeners.delete(fn);
     };
   }
-  /** Fires on the rising edge of a threshold crossing (subject to cooldown). */
   onThreshold(fn: ThresholdListener) {
     this.thresholdListeners.add(fn);
     return () => {
@@ -151,7 +134,7 @@ export class AudioEngine {
     this.processor = this.ctx.createScriptProcessor(PROCESSOR_BUFFER, 1, 1);
     this.processor.onaudioprocess = this.handleAudioProcess;
     this.mutedGain = this.ctx.createGain();
-    this.mutedGain.gain.value = 0; // keep the processor alive without audible feedback
+    this.mutedGain.gain.value = 0;
     this.source.connect(this.processor);
     this.processor.connect(this.mutedGain);
     this.mutedGain.connect(this.ctx.destination);
@@ -179,10 +162,6 @@ export class AudioEngine {
     this.stream = null;
   }
 
-  /**
-   * Average uncalibrated level (dBFS) over `sec` seconds. Power-averaged, so a
-   * steady reference sound gives a stable reading. Requires the mic running.
-   */
   async measureDbfs(sec: number): Promise<number> {
     if (!this.running) throw new Error("Microphone is not running");
     this.measuring = { sumSq: 0, n: 0 };
@@ -199,12 +178,10 @@ export class AudioEngine {
     return Math.max(0, db);
   }
 
-  /** Audio-thread callback: keep the ring filled, capture if recording, detect triggers. */
   private handleAudioProcess = (e: AudioProcessingEvent) => {
     const input = e.inputBuffer.getChannelData(0);
     const n = input.length;
 
-    // Write into ring buffer.
     const ring = this.ring;
     if (ring.length > 0) {
       for (let i = 0; i < n; i++) {
@@ -217,7 +194,6 @@ export class AudioEngine {
       }
     }
 
-    // Block RMS -> dB (used for accurate trigger detection).
     let sum = 0;
     for (let i = 0; i < n; i++) sum += input[i] * input[i];
     const db = this.rmsToDb(Math.sqrt(sum / n));
@@ -231,11 +207,9 @@ export class AudioEngine {
 
     if (above) {
       if (!this.recording) this.startRecording();
-      // Extend (or set) the deadline on every trigger.
       this.recordUntil = now + this.cfg.postRollSec;
     }
 
-    // Rising edge: only fire when crossing from below to above, with cooldown.
     if (above && !this.wasAbove && now - this.lastAlertAt >= ALERT_COOLDOWN_SEC) {
       this.lastAlertAt = now;
       this.thresholdListeners.forEach((fn) => fn(db));
@@ -250,7 +224,7 @@ export class AudioEngine {
     this.wasAbove = above;
 
     if (this.recording) {
-      this.captureChunks.push(new Float32Array(input)); // copy: buffer is reused
+      this.captureChunks.push(new Float32Array(input));
       if (db > this.capturePeakDb) this.capturePeakDb = db;
       if (now >= this.recordUntil) this.finalizeClip();
     }
@@ -261,7 +235,6 @@ export class AudioEngine {
     this.captureChunks = [];
     this.capturePeakDb = -Infinity;
 
-    // Seed the clip with the pre-roll (ring buffer) in chronological order.
     const ring = this.ring;
     if (ring.length > 0) {
       if (this.ringFilled) {
@@ -301,7 +274,6 @@ export class AudioEngine {
     this.clipListeners.forEach((fn) => fn(clip));
   }
 
-  /** Visual meter: smooth dBFS reading via the analyser node. */
   private loop = () => {
     if (!this.running || !this.analyser) return;
     this.analyser.getFloatTimeDomainData(this.analyserBuf);
@@ -310,7 +282,6 @@ export class AudioEngine {
       sum += this.analyserBuf[i] * this.analyserBuf[i];
     }
     const db = this.rmsToDb(Math.sqrt(sum / this.analyserBuf.length));
-    // Fast attack, slower release for a lively-but-readable meter.
     const k = db > this.smoothedDb ? 0.6 : 0.15;
     this.smoothedDb += (db - this.smoothedDb) * k;
     this.levelListeners.forEach((fn) => fn(this.smoothedDb));

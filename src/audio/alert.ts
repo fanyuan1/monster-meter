@@ -1,13 +1,11 @@
-/** A playable sound: a synth tone or an audio file URL. */
 export type SoundSpec = { kind: "siren" } | { kind: "beep" } | { kind: "file"; url: string };
 
 export interface AlertOptions {
-  phrase: string; // blank = no speech
-  volume: number; // 0..1
+  phrase: string;
+  volume: number;
   sounds: SoundSpec[];
 }
 
-/** Speak a phrase via the Web Speech API (no audio assets needed). */
 function speak(phrase: string, volume: number) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   try {
@@ -18,11 +16,9 @@ function speak(phrase: string, volume: number) {
     u.pitch = 1.15;
     window.speechSynthesis.speak(u);
   } catch {
-    /* speech not available */
   }
 }
 
-/** Rising/falling siren sweep. `cycles` sweeps of 0.5s each. */
 function playSiren(ctx: AudioContext, volume: number, cycles = 3) {
   const now = ctx.currentTime;
   const dur = cycles * 0.5;
@@ -45,7 +41,6 @@ function playSiren(ctx: AudioContext, volume: number, cycles = 3) {
   osc.stop(now + dur + 0.1);
 }
 
-/** Two short urgent beeps. */
 function playBeep(ctx: AudioContext, volume: number) {
   const now = ctx.currentTime;
   for (const t of [0, 0.18]) {
@@ -64,21 +59,15 @@ function playBeep(ctx: AudioContext, volume: number) {
   }
 }
 
-/** Play an audio-file sound (bundled asset or uploaded data URL). */
 function playFile(url: string, volume: number) {
   try {
     const a = new Audio(url);
     a.volume = Math.max(0, Math.min(1, volume));
     void a.play().catch(() => {});
   } catch {
-    /* ignore playback errors */
   }
 }
 
-/**
- * Play an alert: speak the phrase (if any) and play every selected sound
- * together. Synth tones need an AudioContext; files do not.
- */
 export function playAlert(ctx: AudioContext | null, opts: AlertOptions) {
   if (opts.phrase && opts.phrase.trim()) speak(opts.phrase, opts.volume);
   for (const s of opts.sounds) {
@@ -92,8 +81,6 @@ export function playAlert(ctx: AudioContext | null, opts: AlertOptions) {
   }
 }
 
-// Lazily-created context so the Settings "Test" button works before the mic
-// engine is running.
 let previewCtx: AudioContext | null = null;
 
 export function previewAlert(opts: AlertOptions) {

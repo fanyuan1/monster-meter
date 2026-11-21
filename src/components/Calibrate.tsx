@@ -14,13 +14,8 @@ interface Props {
 type Mode = "meter" | "quiet";
 
 const MEASURE_SEC = 3;
-/** Typical reading for a quiet room at night; good enough without a reference meter. */
 const QUIET_ROOM_DB = 35;
 
-/**
- * Guided calibration: measure the raw mic level, then pick the offset that
- * makes it read a known value (a reference meter's reading, or a quiet room).
- */
 export function Calibrate({ engine, running, starting, calibrationDb, onStart, onCalibrate }: Props) {
   const [mode, setMode] = useState<Mode>("meter");
   const [refDb, setRefDb] = useState("");

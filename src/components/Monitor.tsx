@@ -10,9 +10,7 @@ interface Props {
   error: string | null;
   monsterId: string;
   thresholdDb: number;
-  /** dB of the most recent threshold breach (null = none yet). */
   mDb: number | null;
-  /** Whether M's clip has finished recording and is navigable. */
   mHasClip: boolean;
   onOpenMClip: () => void;
   onStart: () => void;
@@ -55,13 +53,10 @@ export function Monitor({
   const [recording, setRecording] = useState(false);
   const [emotion, setEmotion] = useState<Emotion>("happy");
 
-  // Keep the latest threshold available inside the per-frame callback without
-  // resubscribing every render.
   const thresholdRef = useRef(thresholdDb);
   thresholdRef.current = thresholdDb;
   const emotionRef = useRef<Emotion>("happy");
 
-  // Apply each level update straight to the DOM (no React re-render per frame).
   useEffect(() => {
     const unsub = engine.onLevel((db) => {
       const f = dbToFraction(db);
@@ -74,10 +69,8 @@ export function Monitor({
         n.textContent = String(Math.round(db));
         n.style.color = color;
         n.style.setProperty("--glow", color);
-        // Higher levels visibly "jump out" toward the viewer.
         n.style.transform = `scale(${(1 + f * 0.7).toFixed(3)})`;
       }
-      // Re-render the monster only when its mood actually changes.
       const next = emotionForLevel(db, thresholdRef.current);
       if (next !== emotionRef.current) {
         emotionRef.current = next;
@@ -89,22 +82,20 @@ export function Monitor({
 
   useEffect(() => engine.onRecStateChange(setRecording), [engine]);
 
-  // Flash the stage red each time the threshold is crossed.
   useEffect(() => {
     return engine.onThreshold(() => {
       const el = flashRef.current;
       if (!el) return;
       el.classList.remove("flash");
-      void el.offsetWidth; // restart the animation
+      void el.offsetWidth;
       el.classList.add("flash");
     });
   }, [engine]);
 
   const thresholdFrac = dbToFraction(thresholdDb);
-  const tickAngle = 225 + thresholdFrac * 270; // gauge starts at 225deg, sweeps 270deg
-  // Position the threshold number just inside the tick, kept upright.
+  const tickAngle = 225 + thresholdFrac * 270;
   const tickRad = (tickAngle * Math.PI) / 180;
-  const labelR = 41; // % of the stage, from center
+  const labelR = 41;
   const labelX = 50 + labelR * Math.sin(tickRad);
   const labelY = 50 - labelR * Math.cos(tickRad);
 
