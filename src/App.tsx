@@ -131,7 +131,7 @@ export function App() {
 
   useEffect(() => {
     return () => {
-      engine.stop();
+      void engine.stop();
     };
   }, [engine]);
 
@@ -143,17 +143,17 @@ export function App() {
       if (document.visibilityState !== "visible") return;
       try {
         const l = await navigator.wakeLock.request("screen");
-        if (cancelled) l.release();
+        if (cancelled) void l.release();
         else lock = l;
       } catch {
       }
     };
-    acquire();
+    void acquire();
     document.addEventListener("visibilitychange", acquire);
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", acquire);
-      lock?.release();
+      void lock?.release();
     };
   }, [running]);
 

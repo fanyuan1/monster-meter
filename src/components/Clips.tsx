@@ -71,18 +71,34 @@ export function Clips({
 }) {
   const [clips, setClips] = useState<StoredClip[] | null>(null);
 
-  const reload = () => getAllClips().then(setClips);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = () => {
+    getAllClips()
+      .then((all) => {
+        setClips(all);
+        setError(null);
+      })
+      .catch(() => setError("Could not load clips from this device."));
+  };
 
   useEffect(() => {
     reload();
   }, [refreshKey]);
 
   const handleDelete = async (id: string) => {
-    await deleteClip(id);
+    try {
+      await deleteClip(id);
+    } catch {
+      setError("Could not delete the clip.");
+      return;
+    }
     reload();
   };
 
-  if (clips === null) return <div className="empty">Loading…</div>;
+  if (clips === null) {
+    return <div className="empty">{error ?? "Loading…"}</div>;
+  }
 
   if (clips.length === 0) {
     return (
@@ -98,6 +114,7 @@ export function Clips({
 
   return (
     <div>
+      {error && <div className="empty">{error}</div>}
       {clips.map((c) => (
         <ClipRow
           key={c.id}
