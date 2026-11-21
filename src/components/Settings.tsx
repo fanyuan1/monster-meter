@@ -73,7 +73,7 @@ export function Settings({ settings, onChange, engine, running, starting, onStar
 
   const onUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-uploading the same file
+    e.target.value = "";
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {

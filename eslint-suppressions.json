@@ -1,7 +1,2 @@
 {
-  "src/components/Settings.tsx": {
-    "lints/no-comments": {
-      "count": 1
-    }
-  }
 }
