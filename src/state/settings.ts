@@ -1,6 +1,6 @@
 import type { ThemePref } from "./theme";
 
-export interface CustomSound {
+interface CustomSound {
   id: string;
   name: string;
   dataUrl: string;
@@ -68,8 +68,8 @@ export function saveSettings(s: Settings) {
 export const CALIBRATION_MIN_DB = 40;
 export const CALIBRATION_MAX_DB = 140;
 
-export const GAUGE_MIN_DB = 30;
-export const GAUGE_MAX_DB = 120;
+const GAUGE_MIN_DB = 30;
+const GAUGE_MAX_DB = 120;
 
 export function dbToFraction(db: number): number {
   const f = (db - GAUGE_MIN_DB) / (GAUGE_MAX_DB - GAUGE_MIN_DB);

@@ -7,13 +7,13 @@ const assetModules = import.meta.glob("../assets/monsters/*.{png,webp,jpg,jpeg,g
 }) as Record<string, string>;
 
 const MONSTER_ASSETS: Record<string, string> = {};
-for (const path in assetModules) {
+for (const [path, url] of Object.entries(assetModules)) {
   const key = path
     .split("/")
     .pop()!
     .replace(/\.[^.]+$/, "")
     .toLowerCase();
-  MONSTER_ASSETS[key] = assetModules[path];
+  MONSTER_ASSETS[key] = url;
 }
 
 const MOOD_FILE: Record<Emotion, string> = {
@@ -33,15 +33,17 @@ export interface MonsterDef {
   color: string;
 }
 
+const DEFAULT_MONSTER: MonsterDef = { id: "thunderpuff", name: "Thunderpuff", color: "#9b86c8" };
+
 export const MONSTERS: MonsterDef[] = [
-  { id: "thunderpuff", name: "Thunderpuff", color: "#9b86c8" },
+  DEFAULT_MONSTER,
   { id: "aquaeye", name: "Aqua-eye", color: "#2f6d99" },
   { id: "wingwurm", name: "Wingwurm", color: "#d85c4f" },
   { id: "finnysnout", name: "Finny snout", color: "#e6c14a" },
 ];
 
-export function getMonster(id: string): MonsterDef {
-  return MONSTERS.find((m) => m.id === id) ?? MONSTERS[0];
+function getMonster(id: string): MonsterDef {
+  return MONSTERS.find((m) => m.id === id) ?? DEFAULT_MONSTER;
 }
 
 const INK = "#3f3147";
@@ -364,7 +366,7 @@ function CrossfadeImage({ url, alt }: { url: string; alt: string }) {
 
   useEffect(() => {
     setLayers((prev) => {
-      if (prev[prev.length - 1].url === url) return prev;
+      if (prev[prev.length - 1]?.url === url) return prev;
       kRef.current += 1;
       return [...prev, { url, k: kRef.current }];
     });
@@ -383,7 +385,7 @@ function CrossfadeImage({ url, alt }: { url: string; alt: string }) {
             className={isTop && layers.length > 1 ? "xfade-enter" : ""}
             onAnimationEnd={
               isTop
-                ? () => setLayers((prev) => (prev[prev.length - 1].k === l.k ? [l] : prev))
+                ? () => setLayers((prev) => (prev[prev.length - 1]?.k === l.k ? [l] : prev))
                 : undefined
             }
           />

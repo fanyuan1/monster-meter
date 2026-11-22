@@ -17,20 +17,18 @@ interface Props {
   onStop: () => void;
 }
 
+type Rgb = readonly [number, number, number];
+
+const GREEN: Rgb = [34, 197, 94];
+const YELLOW: Rgb = [250, 204, 21];
+const RED: Rgb = [239, 68, 68];
+
+function mix(from: Rgb, to: Rgb, t: number): Rgb {
+  return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, from[2] + (to[2] - from[2]) * t];
+}
+
 function levelColor(f: number): string {
-  const stops: [number, number, number][] = [
-    [34, 197, 94],
-    [250, 204, 21],
-    [239, 68, 68],
-  ];
-  let c: number[];
-  if (f < 0.5) {
-    const t = f / 0.5;
-    c = stops[0].map((v, i) => v + (stops[1][i] - v) * t);
-  } else {
-    const t = (f - 0.5) / 0.5;
-    c = stops[1].map((v, i) => v + (stops[2][i] - v) * t);
-  }
+  const c = f < 0.5 ? mix(GREEN, YELLOW, f / 0.5) : mix(YELLOW, RED, (f - 0.5) / 0.5);
   return `rgb(${c[0] | 0}, ${c[1] | 0}, ${c[2] | 0})`;
 }
 

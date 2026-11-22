@@ -184,8 +184,8 @@ export class AudioEngine {
 
     const ring = this.ring;
     if (ring.length > 0) {
-      for (let i = 0; i < n; i++) {
-        ring[this.ringWrite] = input[i];
+      for (const sample of input) {
+        ring[this.ringWrite] = sample;
         this.ringWrite++;
         if (this.ringWrite >= ring.length) {
           this.ringWrite = 0;
@@ -195,7 +195,7 @@ export class AudioEngine {
     }
 
     let sum = 0;
-    for (let i = 0; i < n; i++) sum += input[i] * input[i];
+    for (const sample of input) sum += sample * sample;
     const db = this.rmsToDb(Math.sqrt(sum / n));
     if (this.measuring) {
       this.measuring.sumSq += sum;
@@ -278,8 +278,8 @@ export class AudioEngine {
     if (!this.running || !this.analyser) return;
     this.analyser.getFloatTimeDomainData(this.analyserBuf);
     let sum = 0;
-    for (let i = 0; i < this.analyserBuf.length; i++) {
-      sum += this.analyserBuf[i] * this.analyserBuf[i];
+    for (const sample of this.analyserBuf) {
+      sum += sample * sample;
     }
     const db = this.rmsToDb(Math.sqrt(sum / this.analyserBuf.length));
     const k = db > this.smoothedDb ? 0.6 : 0.15;

@@ -13,7 +13,7 @@ export const BUILTIN_SOUNDS: SoundOption[] = [
   { id: "nile", name: "Nile" },
 ];
 
-export function resolveSound(id: string, settings: Settings): SoundSpec | null {
+function resolveSound(id: string, settings: Settings): SoundSpec | null {
   if (id === "siren") return { kind: "siren" };
   if (id === "beep") return { kind: "beep" };
   if (id === "nile") return { kind: "file", url: nileUrl };
