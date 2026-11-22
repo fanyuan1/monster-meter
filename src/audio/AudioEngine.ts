@@ -1,3 +1,4 @@
+import captureWorkletUrl from "./capture.worklet.ts?worker&url";
 import { encodeWav } from "./wav";
 import { playAlert } from "./alert";
 import type { SoundSpec } from "./alert";
@@ -26,7 +27,6 @@ type RecStateListener = (recording: boolean) => void;
 type ClipListener = (clip: RecordedClip) => void;
 type ThresholdListener = (db: number) => void;
 
-const PROCESSOR_BUFFER = 4096;
 const ALERT_COOLDOWN_SEC = 1.2;
 
 export class AudioEngine {
@@ -34,7 +34,7 @@ export class AudioEngine {
   private stream: MediaStream | null = null;
   private source: MediaStreamAudioSourceNode | null = null;
   private analyser: AnalyserNode | null = null;
-  private processor: ScriptProcessorNode | null = null;
+  private processor: AudioWorkletNode | null = null;
   private mutedGain: GainNode | null = null;
 
   private cfg: EngineConfig;
@@ -130,8 +130,9 @@ export class AudioEngine {
 
     this.allocateRing();
 
-    this.processor = this.ctx.createScriptProcessor(PROCESSOR_BUFFER, 1, 1);
-    this.processor.onaudioprocess = this.handleAudioProcess;
+    await this.ctx.audioWorklet.addModule(captureWorkletUrl);
+    this.processor = new AudioWorkletNode(this.ctx, "capture", { channelCount: 1, channelCountMode: "explicit" });
+    this.processor.port.onmessage = (e: MessageEvent<Float32Array>) => this.handleChunk(e.data);
     this.mutedGain = this.ctx.createGain();
     this.mutedGain.gain.value = 0;
     this.source.connect(this.processor);
@@ -213,10 +214,9 @@ export class AudioEngine {
     if (now >= this.recordUntil) this.finalizeClip();
   }
 
-  private handleAudioProcess = (e: AudioProcessingEvent) => {
+  private handleChunk = (input: Float32Array) => {
     const ctx = this.ctx;
     if (!ctx) return;
-    const input = e.inputBuffer.getChannelData(0);
     const n = input.length;
 
     this.writeToRing(input);

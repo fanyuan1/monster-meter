@@ -1,7 +1,2 @@
 {
-  "src/audio/AudioEngine.ts": {
-    "lints/no-deprecated": {
-      "count": 5
-    }
-  }
 }
