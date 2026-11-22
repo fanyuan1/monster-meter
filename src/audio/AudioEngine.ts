@@ -117,8 +117,7 @@ export class AudioEngine {
       },
     });
 
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    this.ctx = new Ctx();
+    this.ctx = new AudioContext();
     if (this.ctx.state === "suspended") await this.ctx.resume();
 
     this.source = this.ctx.createMediaStreamSource(this.stream);
@@ -166,10 +165,15 @@ export class AudioEngine {
     if (!this.running) throw new Error("Microphone is not running");
     this.measuring = { sumSq: 0, n: 0 };
     await new Promise((r) => setTimeout(r, sec * 1000));
-    const m = this.measuring;
-    this.measuring = null;
+    const m = this.finishMeasuring();
     if (!m || m.n === 0 || m.sumSq === 0) throw new Error("No audio captured");
     return 10 * Math.log10(m.sumSq / m.n);
+  }
+
+  private finishMeasuring() {
+    const m = this.measuring;
+    this.measuring = null;
+    return m;
   }
 
   private rmsToDb(rms: number): number {
@@ -178,21 +182,44 @@ export class AudioEngine {
     return Math.max(0, db);
   }
 
+  private writeToRing(input: Float32Array) {
+    const ring = this.ring;
+    if (ring.length === 0) return;
+    for (const sample of input) {
+      ring[this.ringWrite] = sample;
+      this.ringWrite++;
+      if (this.ringWrite >= ring.length) {
+        this.ringWrite = 0;
+        this.ringFilled = true;
+      }
+    }
+  }
+
+  private notifyThreshold(ctx: AudioContext, db: number) {
+    this.lastAlertAt = ctx.currentTime;
+    this.thresholdListeners.forEach((fn) => fn(db));
+    if (this.cfg.alertEnabled) {
+      playAlert(ctx, {
+        phrase: this.cfg.alertPhrase,
+        volume: this.cfg.alertVolume,
+        sounds: this.cfg.alertSounds,
+      });
+    }
+  }
+
+  private captureChunk(input: Float32Array, db: number, now: number) {
+    this.captureChunks.push(new Float32Array(input));
+    if (db > this.capturePeakDb) this.capturePeakDb = db;
+    if (now >= this.recordUntil) this.finalizeClip();
+  }
+
   private handleAudioProcess = (e: AudioProcessingEvent) => {
+    const ctx = this.ctx;
+    if (!ctx) return;
     const input = e.inputBuffer.getChannelData(0);
     const n = input.length;
 
-    const ring = this.ring;
-    if (ring.length > 0) {
-      for (const sample of input) {
-        ring[this.ringWrite] = sample;
-        this.ringWrite++;
-        if (this.ringWrite >= ring.length) {
-          this.ringWrite = 0;
-          this.ringFilled = true;
-        }
-      }
-    }
+    this.writeToRing(input);
 
     let sum = 0;
     for (const sample of input) sum += sample * sample;
@@ -202,7 +229,7 @@ export class AudioEngine {
       this.measuring.n += n;
     }
 
-    const now = this.ctx!.currentTime;
+    const now = ctx.currentTime;
     const above = db >= this.cfg.thresholdDb;
 
     if (above) {
@@ -211,23 +238,11 @@ export class AudioEngine {
     }
 
     if (above && !this.wasAbove && now - this.lastAlertAt >= ALERT_COOLDOWN_SEC) {
-      this.lastAlertAt = now;
-      this.thresholdListeners.forEach((fn) => fn(db));
-      if (this.cfg.alertEnabled) {
-        playAlert(this.ctx, {
-          phrase: this.cfg.alertPhrase,
-          volume: this.cfg.alertVolume,
-          sounds: this.cfg.alertSounds,
-        });
-      }
+      this.notifyThreshold(ctx, db);
     }
     this.wasAbove = above;
 
-    if (this.recording) {
-      this.captureChunks.push(new Float32Array(input));
-      if (db > this.capturePeakDb) this.capturePeakDb = db;
-      if (now >= this.recordUntil) this.finalizeClip();
-    }
+    if (this.recording) this.captureChunk(input, db, now);
   };
 
   private startRecording() {

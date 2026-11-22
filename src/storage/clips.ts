@@ -9,6 +9,10 @@ export interface StoredClip {
 const DB_NAME = "monster-meter";
 const STORE = "clips";
 
+function toError(error: DOMException | null): Error {
+  return error ?? new Error("IndexedDB request failed");
+}
+
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -19,7 +23,7 @@ function openDb(): Promise<IDBDatabase> {
       }
     };
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(toError(req.error));
   });
 }
 
@@ -29,7 +33,7 @@ export async function addClip(clip: StoredClip): Promise<void> {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).put(clip);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(toError(tx.error));
   });
 }
 
@@ -40,7 +44,7 @@ export async function getAllClips(): Promise<StoredClip[]> {
     const req = tx.objectStore(STORE).getAll();
     req.onsuccess = () =>
       resolve((req.result as StoredClip[]).sort((a, b) => b.createdAt - a.createdAt));
-    req.onerror = () => reject(req.error);
+    req.onerror = () => reject(toError(req.error));
   });
 }
 
@@ -50,6 +54,6 @@ export async function deleteClip(id: string): Promise<void> {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).delete(id);
     tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+    tx.onerror = () => reject(toError(tx.error));
   });
 }

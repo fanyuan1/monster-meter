@@ -69,58 +69,161 @@ function NavIcon({ name }: { name: Tab }) {
   );
 }
 
-export function App() {
-  const [settings, setSettings] = useState<SettingsType>(() => {
-    const s = loadSettings();
-    if (!MONSTERS.some((m) => m.id === s.monsterId)) s.monsterId = DEFAULT_SETTINGS.monsterId;
-    return s;
-  });
-  const [tab, setTab] = useState<Tab>("monitor");
-  const [running, setRunning] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [clipsKey, setClipsKey] = useState(0);
+function loadInitialSettings(): SettingsType {
+  const s = loadSettings();
+  if (!MONSTERS.some((m) => m.id === s.monsterId)) s.monsterId = DEFAULT_SETTINGS.monsterId;
+  return s;
+}
 
+function logError(error: unknown) {
+  console.error(error);
+}
+
+function micErrorMessage(e: unknown): string {
+  const name = e instanceof Error ? e.name : undefined;
+  if (name === "NotAllowedError") {
+    return "Microphone permission denied. Enable it in your browser settings.";
+  }
+  if (name === "NotFoundError") return "No microphone found on this device.";
+  return "Could not access the microphone. (Mic needs HTTPS or localhost.)";
+}
+
+async function storeClip(clip: RecordedClip): Promise<string> {
+  const id = `${clip.createdAt}-${Math.random().toString(36).slice(2, 8)}`;
+  await addClip({
+    id,
+    blob: clip.blob,
+    durationSec: clip.durationSec,
+    peakDb: clip.peakDb,
+    createdAt: clip.createdAt,
+  });
+  return id;
+}
+
+function useEngineEvents(engine: AudioEngine, vibrateEnabled: boolean) {
+  const [clipsKey, setClipsKey] = useState(0);
   const [mDb, setMDb] = useState<number | null>(null);
   const [mClipId, setMClipId] = useState<string | null>(null);
-  const [highlightClipId, setHighlightClipId] = useState<string | null>(null);
   const awaitingMClip = useRef(false);
-
-  const engineRef = useRef<AudioEngine | null>(null);
-  if (!engineRef.current) {
-    engineRef.current = new AudioEngine(toEngineConfig(settings));
-  }
-  const engine = engineRef.current;
+  const vibrateRef = useRef(vibrateEnabled);
+  vibrateRef.current = vibrateEnabled;
 
   useEffect(() => {
-    return engine.onClip(async (clip: RecordedClip) => {
-      const id = `${clip.createdAt}-${Math.random().toString(36).slice(2, 8)}`;
-      await addClip({
-        id,
-        blob: clip.blob,
-        durationSec: clip.durationSec,
-        peakDb: clip.peakDb,
-        createdAt: clip.createdAt,
-      });
-      if (awaitingMClip.current) {
-        awaitingMClip.current = false;
-        setMClipId(id);
-      }
-      setClipsKey((k) => k + 1);
+    return engine.onClip((clip: RecordedClip) => {
+      void storeClip(clip)
+        .then((id) => {
+          if (awaitingMClip.current) {
+            awaitingMClip.current = false;
+            setMClipId(id);
+          }
+          setClipsKey((k) => k + 1);
+        })
+        .catch(logError);
     });
   }, [engine]);
 
-  const vibrateRef = useRef(settings.vibrateEnabled);
-  vibrateRef.current = settings.vibrateEnabled;
-
   useEffect(() => {
     return engine.onThreshold((db) => {
-      if (vibrateRef.current) navigator.vibrate?.([200, 100, 200]);
+      if (vibrateRef.current && "vibrate" in navigator) navigator.vibrate([200, 100, 200]);
       setMDb(Math.round(db));
       setMClipId(null);
       awaitingMClip.current = true;
     });
   }, [engine]);
+
+  const bumpClipsKey = useCallback(() => setClipsKey((k) => k + 1), []);
+  return { clipsKey, mDb, mClipId, bumpClipsKey };
+}
+
+function useWakeLock(active: boolean) {
+  useEffect(() => {
+    if (!active || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let cancelled = false;
+    const acquire = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const l = await navigator.wakeLock.request("screen");
+        if (cancelled) void l.release();
+        else lock = l;
+      } catch {
+      }
+    };
+    const onVisibilityChange = () => {
+      void acquire();
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      void lock?.release();
+    };
+  }, [active]);
+}
+
+function useMicControl(engine: AudioEngine, onStopped: () => void) {
+  const [running, setRunning] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const start = useCallback(() => {
+    setError(null);
+    setStarting(true);
+    void engine
+      .start()
+      .then(() => setRunning(true))
+      .catch((e: unknown) => setError(micErrorMessage(e)))
+      .finally(() => setStarting(false));
+  }, [engine]);
+
+  const stop = useCallback(() => {
+    void engine
+      .stop()
+      .then(() => {
+        setRunning(false);
+        onStopped();
+      })
+      .catch(logError);
+  }, [engine, onStopped]);
+
+  return { running, starting, error, start, stop };
+}
+
+function BottomNav({ tab, onSelect }: { tab: Tab; onSelect: (tab: Tab) => void }) {
+  const items: { id: Tab; label: string }[] = [
+    { id: "monitor", label: "Monitor" },
+    { id: "clips", label: "Clips" },
+    { id: "settings", label: "Settings" },
+  ];
+  return (
+    <nav className="nav">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          className={tab === item.id ? "active" : ""}
+          onClick={() => onSelect(item.id)}
+        >
+          <NavIcon name={item.id} />
+          {item.label}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+export function App() {
+  const [settings, setSettings] = useState<SettingsType>(loadInitialSettings);
+  const [tab, setTab] = useState<Tab>("monitor");
+  const [highlightClipId, setHighlightClipId] = useState<string | null>(null);
+
+  const engineRef = useRef<AudioEngine | null>(null);
+  engineRef.current ??= new AudioEngine(toEngineConfig(settings));
+  const engine = engineRef.current;
+
+  const { clipsKey, mDb, mClipId, bumpClipsKey } = useEngineEvents(engine, settings.vibrateEnabled);
+  const { running, starting, error, start, stop } = useMicControl(engine, bumpClipsKey);
+  useWakeLock(running);
 
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
 
@@ -135,56 +238,9 @@ export function App() {
     };
   }, [engine]);
 
-  useEffect(() => {
-    if (!running || !("wakeLock" in navigator)) return;
-    let lock: WakeLockSentinel | null = null;
-    let cancelled = false;
-    const acquire = async () => {
-      if (document.visibilityState !== "visible") return;
-      try {
-        const l = await navigator.wakeLock.request("screen");
-        if (cancelled) void l.release();
-        else lock = l;
-      } catch {
-      }
-    };
-    void acquire();
-    document.addEventListener("visibilitychange", acquire);
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", acquire);
-      void lock?.release();
-    };
-  }, [running]);
-
   const updateSettings = useCallback((patch: Partial<SettingsType>) => {
     setSettings((s) => ({ ...s, ...patch }));
   }, []);
-
-  const handleStart = useCallback(async () => {
-    setError(null);
-    setStarting(true);
-    try {
-      await engine.start();
-      setRunning(true);
-    } catch (e: any) {
-      const msg =
-        e?.name === "NotAllowedError"
-          ? "Microphone permission denied. Enable it in your browser settings."
-          : e?.name === "NotFoundError"
-          ? "No microphone found on this device."
-          : "Could not access the microphone. (Mic needs HTTPS or localhost.)";
-      setError(msg);
-    } finally {
-      setStarting(false);
-    }
-  }, [engine]);
-
-  const handleStop = useCallback(async () => {
-    await engine.stop();
-    setRunning(false);
-    setClipsKey((k) => k + 1);
-  }, [engine]);
 
   const handleOpenMClip = useCallback(() => {
     setTab("clips");
@@ -211,8 +267,8 @@ export function App() {
             mDb={mDb}
             mHasClip={mClipId !== null}
             onOpenMClip={handleOpenMClip}
-            onStart={handleStart}
-            onStop={handleStop}
+            onStart={start}
+            onStop={stop}
           />
         )}
         {tab === "clips" && (
@@ -229,25 +285,12 @@ export function App() {
             engine={engine}
             running={running}
             starting={starting}
-            onStart={handleStart}
+            onStart={start}
           />
         )}
       </div>
 
-      <nav className="nav">
-        <button className={tab === "monitor" ? "active" : ""} onClick={() => setTab("monitor")}>
-          <NavIcon name="monitor" />
-          Monitor
-        </button>
-        <button className={tab === "clips" ? "active" : ""} onClick={() => setTab("clips")}>
-          <NavIcon name="clips" />
-          Clips
-        </button>
-        <button className={tab === "settings" ? "active" : ""} onClick={() => setTab("settings")}>
-          <NavIcon name="settings" />
-          Settings
-        </button>
-      </nav>
+      <BottomNav tab={tab} onSelect={setTab} />
     </div>
   );
 }

@@ -16,6 +16,8 @@ interface Props {
   onStart: () => void;
 }
 
+type CardProps = Pick<Props, "settings" | "onChange">;
+
 const CAN_VIBRATE = typeof navigator !== "undefined" && "vibrate" in navigator;
 
 function Slider({
@@ -56,7 +58,86 @@ function Slider({
   );
 }
 
-export function Settings({ settings, onChange, engine, running, starting, onStart }: Props) {
+function MonsterCard({ settings, onChange }: CardProps) {
+  return (
+    <div className="card">
+      <h2>Pick your monster</h2>
+      <p className="sub">The meter's mood reacts to how loud it gets.</p>
+      <div className="monster-grid">
+        {MONSTERS.map((m) => (
+          <button
+            key={m.id}
+            className={`monster-card ${settings.monsterId === m.id ? "selected" : ""}`}
+            onClick={() => onChange({ monsterId: m.id })}
+          >
+            <div className="thumb">
+              <Monster id={m.id} />
+            </div>
+            <span className="name">{m.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AppearanceCard({ settings, onChange }: CardProps) {
+  return (
+    <div className="card">
+      <h2>Appearance</h2>
+      <p className="sub">System follows your phone's light or dark mode.</p>
+      <div className="seg">
+        {(["system", "light", "dark"] as const).map((t) => (
+          <button
+            key={t}
+            className={settings.theme === t ? "active" : ""}
+            onClick={() => onChange({ theme: t })}
+          >
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TriggerCard({ settings, onChange }: CardProps) {
+  return (
+    <div className="card">
+      <h2>Trigger</h2>
+      <p className="sub">When the level crosses this, a clip starts recording.</p>
+      <Slider
+        label="Threshold"
+        value={settings.thresholdDb}
+        min={50}
+        max={120}
+        step={1}
+        unit=" dB"
+        onChange={(v) => onChange({ thresholdDb: v })}
+      />
+      {CAN_VIBRATE && (
+        <div className="alert-head" style={{ marginTop: 16 }}>
+          <div>
+            <h2>Vibrate</h2>
+            <p className="sub" style={{ margin: 0 }}>
+              Buzz the phone when the level crosses the threshold.
+            </p>
+          </div>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={settings.vibrateEnabled}
+              onChange={(e) => onChange({ vibrateEnabled: e.target.checked })}
+            />
+            <span className="track" />
+          </label>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SoundPicker({ settings, onChange }: CardProps) {
   const toggleSound = (id: string) => {
     const sel = settings.alertSounds.includes(id)
       ? settings.alertSounds.filter((s) => s !== id)
@@ -77,10 +158,11 @@ export function Settings({ settings, onChange, engine, running, starting, onStar
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
+      if (typeof reader.result !== "string") return;
       const id = `custom-${Date.now().toString(36)}`;
       const name = (file.name.replace(/\.[^.]+$/, "") || "Custom").slice(0, 20);
       onChange({
-        customSounds: [...settings.customSounds, { id, name, dataUrl: String(reader.result) }],
+        customSounds: [...settings.customSounds, { id, name, dataUrl: reader.result }],
         alertSounds: [...settings.alertSounds, id],
       });
     };
@@ -88,231 +170,200 @@ export function Settings({ settings, onChange, engine, running, starting, onStar
   };
 
   return (
-    <div>
-      <div className="card">
-        <h2>Pick your monster</h2>
-        <p className="sub">The meter's mood reacts to how loud it gets.</p>
-        <div className="monster-grid">
-          {MONSTERS.map((m) => (
-            <button
-              key={m.id}
-              className={`monster-card ${settings.monsterId === m.id ? "selected" : ""}`}
-              onClick={() => onChange({ monsterId: m.id })}
-            >
-              <div className="thumb">
-                <Monster id={m.id} />
-              </div>
-              <span className="name">{m.name}</span>
-            </button>
-          ))}
-        </div>
+    <div className="field">
+      <div className="label">
+        <span>Sounds</span>
+        <span className="val" style={{ color: "var(--muted)", fontWeight: 600 }}>
+          pick any
+        </span>
       </div>
-
-      <div className="card">
-        <h2>Appearance</h2>
-        <p className="sub">System follows your phone's light or dark mode.</p>
-        <div className="seg">
-          {(["system", "light", "dark"] as const).map((t) => (
-            <button
-              key={t}
-              className={settings.theme === t ? "active" : ""}
-              onClick={() => onChange({ theme: t })}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+      <div className="sound-grid">
+        {BUILTIN_SOUNDS.map((s) => (
+          <button
+            key={s.id}
+            className={`sound-chip ${settings.alertSounds.includes(s.id) ? "selected" : ""}`}
+            onClick={() => toggleSound(s.id)}
+          >
+            {s.name}
+          </button>
+        ))}
+        {settings.customSounds.map((s) => (
+          <span
+            key={s.id}
+            className={`sound-chip ${settings.alertSounds.includes(s.id) ? "selected" : ""}`}
+          >
+            <button className="chip-main" onClick={() => toggleSound(s.id)}>
+              {s.name}
             </button>
-          ))}
-        </div>
+            <button
+              className="chip-x"
+              title="Remove"
+              onClick={() => removeCustom(s.id)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <label className="sound-chip upload">
+          + Upload
+          <input type="file" accept="audio/*" hidden onChange={onUpload} />
+        </label>
       </div>
+    </div>
+  );
+}
 
-      <div className="card">
-        <h2>Trigger</h2>
-        <p className="sub">When the level crosses this, a clip starts recording.</p>
-        <Slider
-          label="Threshold"
-          value={settings.thresholdDb}
-          min={50}
-          max={120}
-          step={1}
-          unit=" dB"
-          onChange={(v) => onChange({ thresholdDb: v })}
+function AlertDetails({ settings, onChange }: CardProps) {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="field">
+        <div className="label">
+          <span>Phrase (spoken)</span>
+        </div>
+        <input
+          type="text"
+          className="text-input"
+          value={settings.alertPhrase}
+          maxLength={80}
+          placeholder="Leave blank for no speech"
+          onChange={(e) => onChange({ alertPhrase: e.target.value })}
         />
-        {CAN_VIBRATE && (
-          <div className="alert-head" style={{ marginTop: 16 }}>
-            <div>
-              <h2>Vibrate</h2>
-              <p className="sub" style={{ margin: 0 }}>
-                Buzz the phone when the level crosses the threshold.
-              </p>
-            </div>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={settings.vibrateEnabled}
-                onChange={(e) => onChange({ vibrateEnabled: e.target.checked })}
-              />
-              <span className="track" />
-            </label>
-          </div>
-        )}
       </div>
 
-      <div className="card">
-        <div className="alert-head">
-          <div>
-            <h2>Threshold alert</h2>
-            <p className="sub" style={{ margin: 0 }}>
-              Play a sound the moment the level crosses the threshold.
-            </p>
-          </div>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={settings.alertEnabled}
-              onChange={(e) => onChange({ alertEnabled: e.target.checked })}
-            />
-            <span className="track" />
-          </label>
+      <SoundPicker settings={settings} onChange={onChange} />
+
+      <div className="field">
+        <div className="label">
+          <span>Volume</span>
+          <span className="val">{Math.round(settings.alertVolume * 100)}%</span>
         </div>
-
-        {settings.alertEnabled && (
-          <div style={{ marginTop: 16 }}>
-            <div className="field">
-              <div className="label">
-                <span>Phrase (spoken)</span>
-              </div>
-              <input
-                type="text"
-                className="text-input"
-                value={settings.alertPhrase}
-                maxLength={80}
-                placeholder="Leave blank for no speech"
-                onChange={(e) => onChange({ alertPhrase: e.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <div className="label">
-                <span>Sounds</span>
-                <span className="val" style={{ color: "var(--muted)", fontWeight: 600 }}>
-                  pick any
-                </span>
-              </div>
-              <div className="sound-grid">
-                {BUILTIN_SOUNDS.map((s) => (
-                  <button
-                    key={s.id}
-                    className={`sound-chip ${settings.alertSounds.includes(s.id) ? "selected" : ""}`}
-                    onClick={() => toggleSound(s.id)}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-                {settings.customSounds.map((s) => (
-                  <span
-                    key={s.id}
-                    className={`sound-chip ${settings.alertSounds.includes(s.id) ? "selected" : ""}`}
-                  >
-                    <button className="chip-main" onClick={() => toggleSound(s.id)}>
-                      {s.name}
-                    </button>
-                    <button
-                      className="chip-x"
-                      title="Remove"
-                      onClick={() => removeCustom(s.id)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <label className="sound-chip upload">
-                  + Upload
-                  <input type="file" accept="audio/*" hidden onChange={onUpload} />
-                </label>
-              </div>
-            </div>
-
-            <div className="field">
-              <div className="label">
-                <span>Volume</span>
-                <span className="val">{Math.round(settings.alertVolume * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={settings.alertVolume}
-                onChange={(e) => onChange({ alertVolume: Number(e.target.value) })}
-              />
-            </div>
-
-            <button
-              className="btn ghost"
-              style={{ width: "100%" }}
-              onClick={() =>
-                previewAlert({
-                  phrase: settings.alertPhrase,
-                  volume: settings.alertVolume,
-                  sounds: resolveSounds(settings),
-                })
-              }
-            >
-              ▶ Test alert
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="card">
-        <h2>Clip length</h2>
-        <p className="sub">
-          Audio is kept from before <em>and</em> after the noise. Each new trigger pushes the
-          end forward, so sustained noise makes a longer clip.
-        </p>
-        <Slider
-          label="Pre-roll (before)"
-          value={settings.preRollSec}
+        <input
+          type="range"
           min={0}
-          max={15}
-          step={0.5}
-          unit=" s"
-          onChange={(v) => onChange({ preRollSec: v })}
-        />
-        <Slider
-          label="Post-roll (after, resets per trigger)"
-          value={settings.postRollSec}
-          min={0.5}
-          max={20}
-          step={0.5}
-          unit=" s"
-          onChange={(v) => onChange({ postRollSec: v })}
+          max={1}
+          step={0.05}
+          value={settings.alertVolume}
+          onChange={(e) => onChange({ alertVolume: Number(e.target.value) })}
         />
       </div>
 
-      <div className="card">
-        <h2>Calibration</h2>
-        <p className="sub">
-          Phones have no true SPL reference. Nudge this so the displayed number matches a real
-          sound‑level meter (higher = reads louder).
-        </p>
-        <Slider
-          label="Offset"
-          value={settings.calibrationDb}
-          min={CALIBRATION_MIN_DB}
-          max={CALIBRATION_MAX_DB}
-          step={1}
-          unit=" dB"
-          onChange={(v) => onChange({ calibrationDb: v })}
-        />
-        <Calibrate
-          engine={engine}
-          running={running}
-          starting={starting}
-          calibrationDb={settings.calibrationDb}
-          onStart={onStart}
-          onCalibrate={(v) => onChange({ calibrationDb: v })}
-        />
+      <button
+        className="btn ghost"
+        style={{ width: "100%" }}
+        onClick={() =>
+          previewAlert({
+            phrase: settings.alertPhrase,
+            volume: settings.alertVolume,
+            sounds: resolveSounds(settings),
+          })
+        }
+      >
+        ▶ Test alert
+      </button>
+    </div>
+  );
+}
+
+function AlertCard({ settings, onChange }: CardProps) {
+  return (
+    <div className="card">
+      <div className="alert-head">
+        <div>
+          <h2>Threshold alert</h2>
+          <p className="sub" style={{ margin: 0 }}>
+            Play a sound the moment the level crosses the threshold.
+          </p>
+        </div>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={settings.alertEnabled}
+            onChange={(e) => onChange({ alertEnabled: e.target.checked })}
+          />
+          <span className="track" />
+        </label>
       </div>
+
+      {settings.alertEnabled && <AlertDetails settings={settings} onChange={onChange} />}
+    </div>
+  );
+}
+
+function ClipLengthCard({ settings, onChange }: CardProps) {
+  return (
+    <div className="card">
+      <h2>Clip length</h2>
+      <p className="sub">
+        Audio is kept from before <em>and</em> after the noise. Each new trigger pushes the
+        end forward, so sustained noise makes a longer clip.
+      </p>
+      <Slider
+        label="Pre-roll (before)"
+        value={settings.preRollSec}
+        min={0}
+        max={15}
+        step={0.5}
+        unit=" s"
+        onChange={(v) => onChange({ preRollSec: v })}
+      />
+      <Slider
+        label="Post-roll (after, resets per trigger)"
+        value={settings.postRollSec}
+        min={0.5}
+        max={20}
+        step={0.5}
+        unit=" s"
+        onChange={(v) => onChange({ postRollSec: v })}
+      />
+    </div>
+  );
+}
+
+function CalibrationCard({ settings, onChange, engine, running, starting, onStart }: CardProps & Pick<Props, "engine" | "running" | "starting" | "onStart">) {
+  return (
+    <div className="card">
+      <h2>Calibration</h2>
+      <p className="sub">
+        Phones have no true SPL reference. Nudge this so the displayed number matches a real
+        sound‑level meter (higher = reads louder).
+      </p>
+      <Slider
+        label="Offset"
+        value={settings.calibrationDb}
+        min={CALIBRATION_MIN_DB}
+        max={CALIBRATION_MAX_DB}
+        step={1}
+        unit=" dB"
+        onChange={(v) => onChange({ calibrationDb: v })}
+      />
+      <Calibrate
+        engine={engine}
+        running={running}
+        starting={starting}
+        calibrationDb={settings.calibrationDb}
+        onStart={onStart}
+        onCalibrate={(v) => onChange({ calibrationDb: v })}
+      />
+    </div>
+  );
+}
+
+export function Settings({ settings, onChange, engine, running, starting, onStart }: Props) {
+  return (
+    <div>
+      <MonsterCard settings={settings} onChange={onChange} />
+      <AppearanceCard settings={settings} onChange={onChange} />
+      <TriggerCard settings={settings} onChange={onChange} />
+      <AlertCard settings={settings} onChange={onChange} />
+      <ClipLengthCard settings={settings} onChange={onChange} />
+      <CalibrationCard
+        settings={settings}
+        onChange={onChange}
+        engine={engine}
+        running={running}
+        starting={starting}
+        onStart={onStart}
+      />
     </div>
   );
 }

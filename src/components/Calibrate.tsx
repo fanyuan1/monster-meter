@@ -16,6 +16,48 @@ type Mode = "meter" | "quiet";
 const MEASURE_SEC = 3;
 const QUIET_ROOM_DB = 35;
 
+function ModeInstructions({
+  mode,
+  refDb,
+  onRefDbChange,
+}: {
+  mode: Mode;
+  refDb: string;
+  onRefDbChange: (value: string) => void;
+}) {
+  if (mode === "quiet") {
+    return (
+      <ol className="steps">
+        <li>Go to a quiet room. Stay silent.</li>
+        <li>Tap Measure. The current level is set to read {QUIET_ROOM_DB} dB.</li>
+        <li>This is approximate. Use "Match a meter" for accuracy.</li>
+      </ol>
+    );
+  }
+  return (
+    <>
+      <ol className="steps">
+        <li>Hold this phone next to a sound-level meter or a meter app.</li>
+        <li>Make a steady sound, such as a fan or running water.</li>
+        <li>Type the meter's reading, then tap Measure. Keep the sound steady for {MEASURE_SEC} s.</li>
+      </ol>
+      <div className="field">
+        <div className="label">
+          <span>Reference reading</span>
+        </div>
+        <input
+          type="number"
+          inputMode="numeric"
+          className="text-input"
+          placeholder="e.g. 70"
+          value={refDb}
+          onChange={(e) => onRefDbChange(e.target.value)}
+        />
+      </div>
+    </>
+  );
+}
+
 export function Calibrate({ engine, running, starting, calibrationDb, onStart, onCalibrate }: Props) {
   const [mode, setMode] = useState<Mode>("meter");
   const [refDb, setRefDb] = useState("");
@@ -60,37 +102,10 @@ export function Calibrate({ engine, running, starting, calibrationDb, onStart, o
         </button>
       </div>
 
-      {mode === "meter" ? (
-        <>
-          <ol className="steps">
-            <li>Hold this phone next to a sound-level meter or a meter app.</li>
-            <li>Make a steady sound, such as a fan or running water.</li>
-            <li>Type the meter's reading, then tap Measure. Keep the sound steady for {MEASURE_SEC} s.</li>
-          </ol>
-          <div className="field">
-            <div className="label">
-              <span>Reference reading</span>
-            </div>
-            <input
-              type="number"
-              inputMode="numeric"
-              className="text-input"
-              placeholder="e.g. 70"
-              value={refDb}
-              onChange={(e) => setRefDb(e.target.value)}
-            />
-          </div>
-        </>
-      ) : (
-        <ol className="steps">
-          <li>Go to a quiet room. Stay silent.</li>
-          <li>Tap Measure. The current level is set to read {QUIET_ROOM_DB} dB.</li>
-          <li>This is approximate. Use "Match a meter" for accuracy.</li>
-        </ol>
-      )}
+      <ModeInstructions mode={mode} refDb={refDb} onRefDbChange={setRefDb} />
 
       {running ? (
-        <button className="btn" style={{ width: "100%" }} disabled={!targetValid || measuring} onClick={measure}>
+        <button className="btn" style={{ width: "100%" }} disabled={!targetValid || measuring} onClick={() => { void measure(); }}>
           {measuring ? `Measuring… (${MEASURE_SEC} s)` : "Measure"}
         </button>
       ) : (

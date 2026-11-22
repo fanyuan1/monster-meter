@@ -84,8 +84,7 @@ export function playAlert(ctx: AudioContext | null, opts: AlertOptions) {
 let previewCtx: AudioContext | null = null;
 
 export function previewAlert(opts: AlertOptions) {
-  const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-  if (!previewCtx) previewCtx = new Ctx();
+  if (!previewCtx) previewCtx = new AudioContext();
   if (previewCtx.state === "suspended") void previewCtx.resume();
   playAlert(previewCtx, opts);
 }

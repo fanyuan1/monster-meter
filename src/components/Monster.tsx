@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { Emotion } from "../state/settings";
 
-const assetModules = import.meta.glob("../assets/monsters/*.{png,webp,jpg,jpeg,gif,svg}", {
+const assetModules = import.meta.glob<string>("../assets/monsters/*.{png,webp,jpg,jpeg,gif,svg}", {
   eager: true,
   import: "default",
-}) as Record<string, string>;
+});
 
 const MONSTER_ASSETS: Record<string, string> = {};
 for (const [path, url] of Object.entries(assetModules)) {
   const key = path
-    .split("/")
-    .pop()!
+    .slice(path.lastIndexOf("/") + 1)
     .replace(/\.[^.]+$/, "")
     .toLowerCase();
   MONSTER_ASSETS[key] = url;

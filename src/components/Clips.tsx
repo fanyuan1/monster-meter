@@ -119,7 +119,7 @@ export function Clips({
         <ClipRow
           key={c.id}
           clip={c}
-          onDelete={handleDelete}
+          onDelete={(id) => { void handleDelete(id); }}
           highlight={c.id === highlightClipId}
           onHighlightDone={onHighlightDone}
         />

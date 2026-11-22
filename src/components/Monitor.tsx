@@ -32,23 +32,9 @@ function levelColor(f: number): string {
   return `rgb(${c[0] | 0}, ${c[1] | 0}, ${c[2] | 0})`;
 }
 
-export function Monitor({
-  engine,
-  running,
-  starting,
-  error,
-  monsterId,
-  thresholdDb,
-  mDb,
-  mHasClip,
-  onOpenMClip,
-  onStart,
-  onStop,
-}: Props) {
+function useLevelDisplay(engine: AudioEngine, thresholdDb: number) {
   const stageRef = useRef<HTMLDivElement>(null);
   const numberRef = useRef<HTMLDivElement>(null);
-  const flashRef = useRef<HTMLDivElement>(null);
-  const [recording, setRecording] = useState(false);
   const [emotion, setEmotion] = useState<Emotion>("happy");
 
   const thresholdRef = useRef(thresholdDb);
@@ -78,17 +64,73 @@ export function Monitor({
     return unsub;
   }, [engine]);
 
-  useEffect(() => engine.onRecStateChange(setRecording), [engine]);
+  return { stageRef, numberRef, emotion };
+}
 
+function useAlertFlash(engine: AudioEngine) {
+  const flashRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     return engine.onThreshold(() => {
       const el = flashRef.current;
       if (!el) return;
       el.classList.remove("flash");
-      void el.offsetWidth;
+      el.getBoundingClientRect();
       el.classList.add("flash");
     });
   }, [engine]);
+  return flashRef;
+}
+
+function StartOverlay({
+  error,
+  starting,
+  onStart,
+}: {
+  error: string | null;
+  starting: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="start-overlay">
+      {error ? (
+        <>
+          <div style={{ fontSize: 40 }}>🚫</div>
+          <div className="hint">{error}</div>
+          <button className="btn" onClick={onStart}>
+            Try again
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 40 }}>🎤</div>
+          <button className="btn" onClick={onStart} disabled={starting}>
+            {starting ? "Starting…" : "Start listening"}
+          </button>
+          <div className="hint">Grant microphone access to wake the monster.</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function Monitor({
+  engine,
+  running,
+  starting,
+  error,
+  monsterId,
+  thresholdDb,
+  mDb,
+  mHasClip,
+  onOpenMClip,
+  onStart,
+  onStop,
+}: Props) {
+  const { stageRef, numberRef, emotion } = useLevelDisplay(engine, thresholdDb);
+  const flashRef = useAlertFlash(engine);
+  const [recording, setRecording] = useState(false);
+
+  useEffect(() => engine.onRecStateChange(setRecording), [engine]);
 
   const thresholdFrac = dbToFraction(thresholdDb);
   const tickAngle = 225 + thresholdFrac * 270;
@@ -136,27 +178,7 @@ export function Monitor({
           <Monster id={monsterId} emotion={running ? emotion : "happy"} />
         </div>
 
-        {!running && (
-          <div className="start-overlay">
-            {error ? (
-              <>
-                <div style={{ fontSize: 40 }}>🚫</div>
-                <div className="hint">{error}</div>
-                <button className="btn" onClick={onStart}>
-                  Try again
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ fontSize: 40 }}>🎤</div>
-                <button className="btn" onClick={onStart} disabled={starting}>
-                  {starting ? "Starting…" : "Start listening"}
-                </button>
-                <div className="hint">Grant microphone access to wake the monster.</div>
-              </>
-            )}
-          </div>
-        )}
+        {!running && <StartOverlay error={error} starting={starting} onStart={onStart} />}
       </div>
 
       <div className="monitor-footer">
